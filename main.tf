@@ -13,25 +13,14 @@ provider "aws" {
   region     = "us-east-2"
 }
 
-#Begin Variables
-
-#End Variables
-
-
-#Begin Locals
 
 locals {
+
+    #Started with locals and realized it wans't worth the time on a small litte file like this.
+
     #S3 Bucket
     bucket_name = "challenge-private-bucket"
     private = "private"
-
-
-    #EC2
-
-
-    #Iam
-    testRole = "test-role"
-    testProfile = "test-profile"
 
     #Keypair
     key_pair_name = "test_key_1"
@@ -39,77 +28,96 @@ locals {
 }
 
 
-#End Locals
-
-
-#Begin Data
-
-
-#End Data
-
-
-#Begin Resources
-
+# Need to create a key pair
+# Wanted to try this in code, but as I test I might need to create it manully and add the public and use the private I downloaded
 resource "aws_key_pair" "test_key" {
   key_name   = local.key_pair_name
-  #Terraform doc had email at the end
+
+  #Terraform doc for public key had email at the end
   #https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#how-to-generate-your-own-key-and-import-it-to-aws
   #https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/key_pair
   public_key = local.public_key
 }
 
+# Pretty simple, make a bucket
 resource "aws_s3_bucket" "private" {
   bucket = local.bucket_name
-
-#TODO, get rid of this if I dont' need it
-  tags = {
-    Name        = "My bucket"
-    Environment = "Dev"
-  }
+  force_destroy = true //Destoy the bucket if it has stuff in it.
 }
 
-resource "aws_s3_bucket_acl" "private" {
+# Found this and seems to be the right stuff for making it private
+# There is a property on the buckety it self that is private as well.
+resource "aws_s3_bucket_public_access_block" "some_bucket_access" {
   bucket = aws_s3_bucket.private.id
-  acl    = local.private
+
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls  = true
 }
 
-
-resource "aws_iam_instance_profile" "test_role" {
-  name = local.testProfile
-  role = aws_iam_role.role.name
+# Seems that a way to add this to the ec2 instance is through a profile.
+resource "aws_iam_instance_profile" "some_profile" {
+  name = "some-profile"
+  role = aws_iam_role.some_role.name
 }
 
-
-resource "aws_iam_role" "role" {
-  name = local.testRole
-  path = "/"
-  description = "Gives access to bucket"
-
-#Not sure if I need put or delete
-#https://aws.amazon.com/premiumsupport/knowledge-center/ec2-instance-access-s3-bucket/
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["s3:ListBucket"],
-      "Resource": ["arn:aws:s3:::${local.bucket_name}"]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject", 
-        "s3:GetObject",
-        "s3:DeleteObject"
-      ],
-      "Resource": ["arn:aws:s3:::${local.bucket_name}/*"]
-    }
-  ]
-}
-EOF
+# this seems to be the place to put my role and policy together
+resource "aws_iam_role_policy_attachment" "some_bucket_policy" {
+  role       = aws_iam_role.some_role.name
+  policy_arn = aws_iam_policy.bucket_policy.arn
 }
 
+#Create a role.
+#Not a 100% sure if I need this?
+resource "aws_iam_role" "some_role" {
+  name = "made_up_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+# What appears to be the correct policy for what I need
+resource "aws_iam_policy" "bucket_policy" {
+  name        = "my-bucket-policy"
+  path        = "/"
+  description = "Allow "
+
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Sid" : "VisualEditor0",
+        "Effect" : "Allow",
+        "Action" : [
+          #I don't think I need put or delete, but I'll leave them there when I test
+          #https://aws.amazon.com/premiumsupport/knowledge-center/ec2-instance-access-s3-bucket/
+          #"s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket",
+          #"s3:DeleteObject"
+        ],
+        "Resource" : [
+          "arn:aws:s3:::*/*",
+          "arn:aws:s3:::${local.bucket_name}"
+        ]
+      }
+    ]
+  })
+}
+
+# Got most of the security group right I think. 
+# Still need to figure out the proper values for Engress
 resource "aws_security_group" "allow_ssh" {
   name        = "allow_ssh"
   description = "Allow ssh inbound traffic"
@@ -118,7 +126,7 @@ resource "aws_security_group" "allow_ssh" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["174.70.63.158"] //Dont use 0.0.0.0
+    cidr_blocks = ["192.168.0.0/24"] //Dont use 0.0.0.0
   }
 
   #Figure out what goes in here
@@ -130,16 +138,11 @@ resource "aws_security_group" "allow_ssh" {
   # }
 }
 
+# Finally put i all together with the EC2 Instance. 
 resource "aws_instance" "challenge_instance" {
-    #Found the ami in the wizard for type and region
-  ami           = "ami-05803413c51f242b7" #Wasn't sure which to use
+  ami           = "ami-05803413c51f242b7"  # Found the ami in the wizard for type and region.  This appeared to be the cheapest
   instance_type = "t2.micro"
-  key_name= "aws_key"
-  pc_security_group_ids = [aws_security_group.allow_ssh.id]
-  iam_instance_profile = aws_iam_instance_profile.test_role.name
+  key_name=  aws_key_pair.test_key.key_name
+  vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+  iam_instance_profile = aws_iam_instance_profile.some_profile.id
 }
-
-
-
-
-#End Resources
