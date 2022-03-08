@@ -23,8 +23,15 @@ locals {
     private = "private"
 
     #Keypair
+    ssh_key_name = "test_key_ssh"
     key_pair_name = "test_key_1"
     public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCkTN8p1M4K4BSd6sDYVfvGRRk1IFU7lLrip/sZxE+ECLW32tNCUqhqPwT82iohpSVoBABghiYME6oQgoQ5n/7zlG5e23Lsf4holYr6HUivAj4yG0G4/XN13TK2eWSFP+QtceGTI2u+lKFYFpnnM6vSM5F4qf0FPxISSHCZ2mojifrZi8Bty+HB/DWzI6cv3gp2NVC7yupYZeFIFlxptFlOmXBVGxSTd5DLqKjfTDztj7NwtB/7GEl09RPsYNdsDugxO24l+1mmyVsJR50n/4Osq0XYmicgCKqBVbe5KXlQy78cO+YLwBVCjzTsTCMdCEQ80kyjmFPFY0zIvgL2mwhB"
+}
+
+# Need to create a way to output the ssh file
+resource "tls_private_key" "ssh" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
 }
 
 
@@ -36,7 +43,15 @@ resource "aws_key_pair" "test_key" {
   #Terraform doc for public key had email at the end
   #https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#how-to-generate-your-own-key-and-import-it-to-aws
   #https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/key_pair
-  public_key = local.public_key
+  public_key = tls_private_key.ssh.public_key_openssh
+}
+
+resource "local_file" "pem_file" {
+  #On Mac, where where I would put it:  filename = pathexpand("~/.ssh/${local.ssh_key_name}.pem")
+  filename = pathexpand("C:/Users/chris/Desktop/K8sPlayground/AWS-Practice/${local.ssh_key_name}.pem")
+  file_permission = "600"
+  directory_permission = "700"
+  sensitive_content = tls_private_key.ssh.private_key_pem
 }
 
 # Pretty simple, make a bucket
