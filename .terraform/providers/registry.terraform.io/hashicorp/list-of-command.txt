@@ -1,0 +1,36 @@
+In powershell to get ssh to the box:
+
+shh -i "name of the saved private key file" "public address of the ec2 instance
+ssh -i "test_key_ssh.pem" ubuntu@ec2-18-222-233-151.us-east-2.compute.amazonaws.com
+
+
+once ssh into the linux box:
+
+1) sudo apt-get update
+
+Updates all the packages inside 
+
+2) sudo apt-get install awscli
+
+Install the aws cli
+
+2a) aws configure
+
+I didn't have it setup right, so I had to configure it with my info.
+When I have IAM right I don't think I will have to do this
+
+3) aws s3 ls
+
+Look at the all the s3 buckets it has access to
+
+4)  aws s3 ls s3://challenge-private-bucket
+
+based on the bucket name, list out all the files inside of it. 
+
+5)  aws s3 cp s3://challenge-private-bucket/test-file-to-upload.txt my-file.txt
+
+Copy the file to this machine
+
+6) cat my-file.txt
+
+Read the file

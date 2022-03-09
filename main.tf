@@ -25,6 +25,9 @@ locals {
     #Keypair
     ssh_key_name = "test_key_ssh"
     key_pair_name = "test_key_1"
+
+    file_path_public = "C:/Users/chris/Desktop/K8sPlayground/AWS-Practice/${local.ssh_key_name}_pub.pem"
+    file_path_private = "C:/Users/chris/Desktop/K8sPlayground/AWS-Practice/${local.ssh_key_name}.pem"
     public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCkTN8p1M4K4BSd6sDYVfvGRRk1IFU7lLrip/sZxE+ECLW32tNCUqhqPwT82iohpSVoBABghiYME6oQgoQ5n/7zlG5e23Lsf4holYr6HUivAj4yG0G4/XN13TK2eWSFP+QtceGTI2u+lKFYFpnnM6vSM5F4qf0FPxISSHCZ2mojifrZi8Bty+HB/DWzI6cv3gp2NVC7yupYZeFIFlxptFlOmXBVGxSTd5DLqKjfTDztj7NwtB/7GEl09RPsYNdsDugxO24l+1mmyVsJR50n/4Osq0XYmicgCKqBVbe5KXlQy78cO+YLwBVCjzTsTCMdCEQ80kyjmFPFY0zIvgL2mwhB"
 }
 
@@ -46,9 +49,19 @@ resource "aws_key_pair" "test_key" {
   public_key = tls_private_key.ssh.public_key_openssh
 }
 
-resource "local_file" "pem_file" {
+#Not sure that I need this, but I'll leave it for now
+resource "local_file" "pem_file_public" {
   #On Mac, where where I would put it:  filename = pathexpand("~/.ssh/${local.ssh_key_name}.pem")
-  filename = pathexpand("C:/Users/chris/Desktop/K8sPlayground/AWS-Practice/${local.ssh_key_name}.pem")
+  filename = pathexpand(local.file_path_public)
+  file_permission = "600"
+  directory_permission = "700"
+  sensitive_content = tls_private_key.ssh.public_key_pem
+}
+
+#This is money and a big time saver
+resource "local_file" "pem_file_private" {
+  #On Mac, where where I would put it:  filename = pathexpand("~/.ssh/${local.ssh_key_name}.pem")
+  filename = pathexpand(local.file_path_private)
   file_permission = "600"
   directory_permission = "700"
   sensitive_content = tls_private_key.ssh.private_key_pem
@@ -158,6 +171,52 @@ resource "aws_instance" "challenge_instance" {
   ami           = "ami-05803413c51f242b7"  # Found the ami in the wizard for type and region.  This appeared to be the cheapest
   instance_type = "t2.micro"
   key_name=  aws_key_pair.test_key.key_name
-  vpc_security_group_ids = [aws_security_group.allow_ssh.id]
-  iam_instance_profile = aws_iam_instance_profile.some_profile.id
+  #vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+  vpc_security_group_ids = [aws_security_group.main.id]
+  #TODO add back and test again
+  #iam_instance_profile = aws_iam_instance_profile.some_profile.id
+
+  connection {
+      type        = "ssh"
+      host        = self.public_ip
+      user        = "ubuntu"
+      private_key = file(local.file_path_private)
+      timeout     = "4m"
+   }
+}
+
+#I don't want to go to the console. This gives me all the params I want
+output "shh_command" {  
+  value = "ssh -i \"test_key_ssh.pem\"  ${aws_instance.challenge_instance.public_dns}"
+} 
+
+#TODO get rid of 
+#I just wanted to get it to work first
+resource "aws_security_group" "main" {
+  egress = [
+    {
+      cidr_blocks      = [ "0.0.0.0/0", ]
+      description      = ""
+      from_port        = 0
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      protocol         = "-1"
+      security_groups  = []
+      self             = false
+      to_port          = 0
+    }
+  ]
+ ingress                = [
+   {
+     cidr_blocks      = [ "0.0.0.0/0", ]
+     description      = ""
+     from_port        = 22
+     ipv6_cidr_blocks = []
+     prefix_list_ids  = []
+     protocol         = "tcp"
+     security_groups  = []
+     self             = false
+     to_port          = 22
+  }
+  ]
 }
