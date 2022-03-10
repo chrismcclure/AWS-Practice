@@ -13,91 +13,191 @@ provider "aws" {
   region     = "us-east-2"
 }
 
-#Begin Variables
-
-#End Variables
-
-
-#Begin Locals
 
 locals {
+
+    #Started with locals and realized it wans't worth the time on a small litte file like this.
+
     #S3 Bucket
     bucket_name = "challenge-private-bucket"
     private = "private"
 
-
-    #EC2
-
-
     #Keypair
+    ssh_key_name = "test_key_ssh"
     key_pair_name = "test_key_1"
-    public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCkTN8p1M4K4BSd6sDYVfvGRRk1IFU7lLrip/sZxE+ECLW32tNCUqhqPwT82iohpSVoBABghiYME6oQgoQ5n/7zlG5e23Lsf4holYr6HUivAj4yG0G4/XN13TK2eWSFP+QtceGTI2u+lKFYFpnnM6vSM5F4qf0FPxISSHCZ2mojifrZi8Bty+HB/DWzI6cv3gp2NVC7yupYZeFIFlxptFlOmXBVGxSTd5DLqKjfTDztj7NwtB/7GEl09RPsYNdsDugxO24l+1mmyVsJR50n/4Osq0XYmicgCKqBVbe5KXlQy78cO+YLwBVCjzTsTCMdCEQ80kyjmFPFY0zIvgL2mwhB"
+    file_path_public = "C:/Users/chris/Desktop/K8sPlayground/AWS-Practice/${local.ssh_key_name}_pub.pem"
+    file_path_private = "C:/Users/chris/Desktop/K8sPlayground/AWS-Practice/${local.ssh_key_name}.pem"
 }
 
+# Need to create a way to output the ssh file
+resource "tls_private_key" "ssh" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
 
-#End Locals
-
-
-#Begin Data
-
-
-#End Data
-
-
-#Begin Resources
-
+# Need to create a key pair
+# Wanted to try this in code, but as I test I might need to create it manully and add the public and use the private I downloaded
 resource "aws_key_pair" "test_key" {
   key_name   = local.key_pair_name
-  #Terraform doc had email at the end
+
+  #Terraform doc for public key had email at the end
   #https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#how-to-generate-your-own-key-and-import-it-to-aws
   #https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/key_pair
-  public_key = local.public_key
+  public_key = tls_private_key.ssh.public_key_openssh
 }
 
+#Not sure that I need this, but I'll leave it for now
+resource "local_file" "pem_file_public" {
+  #On Mac, where where I would put it:  filename = pathexpand("~/.ssh/${local.ssh_key_name}.pem")
+  filename = pathexpand(local.file_path_public)
+  file_permission = "600"
+  directory_permission = "700"
+  sensitive_content = tls_private_key.ssh.public_key_pem
+}
+
+#This is money and a big time saver
+resource "local_file" "pem_file_private" {
+  #On Mac, where where I would put it:  filename = pathexpand("~/.ssh/${local.ssh_key_name}.pem")
+  filename = pathexpand(local.file_path_private)
+  file_permission = "600"
+  directory_permission = "700"
+  sensitive_content = tls_private_key.ssh.private_key_pem
+}
+
+# Pretty simple, make a bucket
 resource "aws_s3_bucket" "private" {
   bucket = local.bucket_name
-
-#TODO, get rid of this if I dont' need it
-  tags = {
-    Name        = "My bucket"
-    Environment = "Dev"
-  }
+  force_destroy = true //Destoy the bucket if it has stuff in it.
 }
 
-resource "aws_s3_bucket_acl" "private" {
+# Found this and seems to be the right stuff for making it private
+# There is a property on the buckety it self that is private as well.
+resource "aws_s3_bucket_public_access_block" "some_bucket_access" {
   bucket = aws_s3_bucket.private.id
-  acl    = local.private
+
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls  = true
 }
 
+# Seems that a way to add this to the ec2 instance is through a profile.
+resource "aws_iam_instance_profile" "some_profile" {
+  name = "some-profile"
+  role = aws_iam_role.some_role.name
+}
+
+# this seems to be the place to put my role and policy together
+resource "aws_iam_role_policy_attachment" "some_bucket_policy" {
+  role       = aws_iam_role.some_role.name
+  policy_arn = aws_iam_policy.bucket_policy.arn
+}
+
+#Create a role.
+#Not a 100% sure if I need this?
+resource "aws_iam_role" "some_role" {
+  name = "made_up_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+# What appears to be the correct policy for what I need
+resource "aws_iam_policy" "bucket_policy" {
+  name        = "my-bucket-policy"
+  path        = "/"
+  description = "Allow "
+
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+       {
+            "Effect": "Allow",
+            "Action": "s3:ListAllMyBuckets",
+            "Resource": "*"
+      },
+      {
+        "Sid" : "VisualEditor0",
+        "Effect" : "Allow",
+        "Action" : [
+          #I don't think I need put or delete, but I'll leave them there when I test
+          #https://aws.amazon.com/premiumsupport/knowledge-center/ec2-instance-access-s3-bucket/
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:DeleteObject"
+        ],
+        "Resource" : [
+          "arn:aws:s3:::*/*",
+          "arn:aws:s3:::${local.bucket_name}"
+        ]
+      }
+    ]
+  })
+}
+
+# Finally put i all together with the EC2 Instance. 
 resource "aws_instance" "challenge_instance" {
-    #Found the ami in the wizard for type and region
-  ami           = "ami-05803413c51f242b7" #Wasn't sure which to use
+  ami           = "ami-05803413c51f242b7"  # Found the ami in the wizard for type and region.  This appeared to be the cheapest
   instance_type = "t2.micro"
+  key_name=  aws_key_pair.test_key.key_name
+  #vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+  vpc_security_group_ids = [aws_security_group.main.id]
+  iam_instance_profile = aws_iam_instance_profile.some_profile.id
+
+  connection {
+      type        = "ssh"
+      host        = self.public_ip
+      user        = "ubuntu"
+      private_key = file(local.file_path_private)
+      timeout     = "4m"
+   }
 }
 
-resource "aws_security_group" "allow_ssh" {
-  name        = "allow_ssh"
-  description = "Allow ssh inbound traffic"
-  vpc_id = "vpc-19efe07e" #Where do I get this
+#I don't want to go to the console. This gives me all the params I want
+output "shh_command" {  
+  value = "ssh -i 'test_key_ssh.pem'  ubuntu@${aws_instance.challenge_instance.public_dns}"
+} 
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["203.210.84.220/32"]
+#TODO get rid of 
+#I just wanted to get it to work first
+resource "aws_security_group" "main" {
+  #Which port is which on this is which
+  #Egress: HTTPS:443 and HTTP:80 - Out to 0.0.0.0/0
+  egress = [
+    {
+      cidr_blocks      = [ "0.0.0.0/0", ]
+      description      = ""
+      from_port        = 0
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      protocol         = "-1"
+      security_groups  = []
+      self             = false
+      to_port          = 0
+    }
+  ]
+ ingress                = [
+   {
+     cidr_blocks      = [ "174.70.63.158/32" ]
+     from_port        = 22
+     to_port          = 22
+     ipv6_cidr_blocks = []
+     prefix_list_ids  = []
+     protocol         = "tcp"
+     self             = false
+     description      = ""
+     security_groups  = []
   }
-
-#   egress = [ {
-#     cidr_blocks = [ "value" ]
-#     description = "value"
-#     from_port = 1
-#     ipv6_cidr_blocks = [ "value" ]
-#     prefix_list_ids = [ "value" ]
-#     protocol = "value"
-#     security_groups = [ "value" ]
-#     self = false
-#     to_port = 1
-#   } ]
+  ]
 }
-
-#End Resources
