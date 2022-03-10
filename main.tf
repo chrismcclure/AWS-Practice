@@ -25,10 +25,8 @@ locals {
     #Keypair
     ssh_key_name = "test_key_ssh"
     key_pair_name = "test_key_1"
-
     file_path_public = "C:/Users/chris/Desktop/K8sPlayground/AWS-Practice/${local.ssh_key_name}_pub.pem"
     file_path_private = "C:/Users/chris/Desktop/K8sPlayground/AWS-Practice/${local.ssh_key_name}.pem"
-    public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCkTN8p1M4K4BSd6sDYVfvGRRk1IFU7lLrip/sZxE+ECLW32tNCUqhqPwT82iohpSVoBABghiYME6oQgoQ5n/7zlG5e23Lsf4holYr6HUivAj4yG0G4/XN13TK2eWSFP+QtceGTI2u+lKFYFpnnM6vSM5F4qf0FPxISSHCZ2mojifrZi8Bty+HB/DWzI6cv3gp2NVC7yupYZeFIFlxptFlOmXBVGxSTd5DLqKjfTDztj7NwtB/7GEl09RPsYNdsDugxO24l+1mmyVsJR50n/4Osq0XYmicgCKqBVbe5KXlQy78cO+YLwBVCjzTsTCMdCEQ80kyjmFPFY0zIvgL2mwhB"
 }
 
 # Need to create a way to output the ssh file
@@ -36,7 +34,6 @@ resource "tls_private_key" "ssh" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
-
 
 # Need to create a key pair
 # Wanted to try this in code, but as I test I might need to create it manully and add the public and use the private I downloaded
@@ -124,16 +121,21 @@ resource "aws_iam_policy" "bucket_policy" {
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
+       {
+            "Effect": "Allow",
+            "Action": "s3:ListAllMyBuckets",
+            "Resource": "*"
+      },
       {
         "Sid" : "VisualEditor0",
         "Effect" : "Allow",
         "Action" : [
           #I don't think I need put or delete, but I'll leave them there when I test
           #https://aws.amazon.com/premiumsupport/knowledge-center/ec2-instance-access-s3-bucket/
-          #"s3:PutObject",
+          "s3:PutObject",
           "s3:GetObject",
           "s3:ListBucket",
-          #"s3:DeleteObject"
+          "s3:DeleteObject"
         ],
         "Resource" : [
           "arn:aws:s3:::*/*",
@@ -144,28 +146,6 @@ resource "aws_iam_policy" "bucket_policy" {
   })
 }
 
-# Got most of the security group right I think. 
-# Still need to figure out the proper values for Engress
-resource "aws_security_group" "allow_ssh" {
-  name        = "allow_ssh"
-  description = "Allow ssh inbound traffic"
-  
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["192.168.0.0/24"] //Dont use 0.0.0.0
-  }
-
-  #Figure out what goes in here
-  # egress {
-  #   from_port       = 0
-  #   to_port         = 0
-  #   protocol        = "-1"
-  #   prefix_list_ids = [aws_vpc_endpoint.my_endpoint.prefix_list_id]
-  # }
-}
-
 # Finally put i all together with the EC2 Instance. 
 resource "aws_instance" "challenge_instance" {
   ami           = "ami-05803413c51f242b7"  # Found the ami in the wizard for type and region.  This appeared to be the cheapest
@@ -173,8 +153,7 @@ resource "aws_instance" "challenge_instance" {
   key_name=  aws_key_pair.test_key.key_name
   #vpc_security_group_ids = [aws_security_group.allow_ssh.id]
   vpc_security_group_ids = [aws_security_group.main.id]
-  #TODO add back and test again
-  #iam_instance_profile = aws_iam_instance_profile.some_profile.id
+  iam_instance_profile = aws_iam_instance_profile.some_profile.id
 
   connection {
       type        = "ssh"
@@ -187,12 +166,14 @@ resource "aws_instance" "challenge_instance" {
 
 #I don't want to go to the console. This gives me all the params I want
 output "shh_command" {  
-  value = "ssh -i \"test_key_ssh.pem\"  ${aws_instance.challenge_instance.public_dns}"
+  value = "ssh -i 'test_key_ssh.pem'  ubuntu@${aws_instance.challenge_instance.public_dns}"
 } 
 
 #TODO get rid of 
 #I just wanted to get it to work first
 resource "aws_security_group" "main" {
+  #Which port is which on this is which
+  #Egress: HTTPS:443 and HTTP:80 - Out to 0.0.0.0/0
   egress = [
     {
       cidr_blocks      = [ "0.0.0.0/0", ]
@@ -208,15 +189,15 @@ resource "aws_security_group" "main" {
   ]
  ingress                = [
    {
-     cidr_blocks      = [ "0.0.0.0/0", ]
-     description      = ""
+     cidr_blocks      = [ "174.70.63.158/32" ]
      from_port        = 22
+     to_port          = 22
      ipv6_cidr_blocks = []
      prefix_list_ids  = []
      protocol         = "tcp"
-     security_groups  = []
      self             = false
-     to_port          = 22
+     description      = ""
+     security_groups  = []
   }
   ]
 }
