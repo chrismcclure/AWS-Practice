@@ -2,3 +2,12 @@
 .terraform/providers/registry.terraform.io/hashicorp/local/2.1.0/windows_amd64/terraform-provider-local_v2.1.0_x5.exe
 .terraform/providers/registry.terraform.io/hashicorp/tls/3.1.0/windows_amd64/terraform-provider-tls_v3.1.0_x5.exe
 test_key_ssh.pem
+VM/.vagrant/machines/default/virtualbox/action_provision
+VM/.vagrant/machines/default/virtualbox/action_set_name
+VM/.vagrant/machines/default/virtualbox/box_meta
+VM/.vagrant/machines/default/virtualbox/creator_uid
+VM/.vagrant/machines/default/virtualbox/id
+VM/.vagrant/machines/default/virtualbox/private_key
+VM/.vagrant/machines/default/virtualbox/index_uuid
+VM/.vagrant/machines/default/virtualbox/synced_folders
+VM/.vagrant/rgloader/loader.rb

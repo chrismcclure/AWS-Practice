@@ -39,10 +39,6 @@ resource "tls_private_key" "ssh" {
 # Wanted to try this in code, but as I test I might need to create it manully and add the public and use the private I downloaded
 resource "aws_key_pair" "test_key" {
   key_name   = local.key_pair_name
-
-  #Terraform doc for public key had email at the end
-  #https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#how-to-generate-your-own-key-and-import-it-to-aws
-  #https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/key_pair
   public_key = tls_private_key.ssh.public_key_openssh
 }
 
@@ -130,15 +126,11 @@ resource "aws_iam_policy" "bucket_policy" {
         "Sid" : "VisualEditor0",
         "Effect" : "Allow",
         "Action" : [
-          #I don't think I need put or delete, but I'll leave them there when I test
-          #https://aws.amazon.com/premiumsupport/knowledge-center/ec2-instance-access-s3-bucket/
-          "s3:PutObject",
           "s3:GetObject",
-          "s3:ListBucket",
-          "s3:DeleteObject"
+          "s3:ListBucket"
         ],
         "Resource" : [
-          "arn:aws:s3:::*/*",
+          "arn:aws:s3:::${local.bucket_name}/*",
           "arn:aws:s3:::${local.bucket_name}"
         ]
       }
@@ -146,12 +138,10 @@ resource "aws_iam_policy" "bucket_policy" {
   })
 }
 
-# Finally put i all together with the EC2 Instance. 
 resource "aws_instance" "challenge_instance" {
-  ami           = "ami-05803413c51f242b7"  # Found the ami in the wizard for type and region.  This appeared to be the cheapest
+  ami           = "ami-05803413c51f242b7"    #Which version of ubuntu is running
   instance_type = "t2.micro"
   key_name=  aws_key_pair.test_key.key_name
-  #vpc_security_group_ids = [aws_security_group.allow_ssh.id]
   vpc_security_group_ids = [aws_security_group.main.id]
   iam_instance_profile = aws_iam_instance_profile.some_profile.id
 
@@ -164,16 +154,11 @@ resource "aws_instance" "challenge_instance" {
    }
 }
 
-#I don't want to go to the console. This gives me all the params I want
 output "shh_command" {  
   value = "ssh -i 'test_key_ssh.pem'  ubuntu@${aws_instance.challenge_instance.public_dns}"
 } 
 
-#TODO get rid of 
-#I just wanted to get it to work first
 resource "aws_security_group" "main" {
-  #Which port is which on this is which
-  #Egress: HTTPS:443 and HTTP:80 - Out to 0.0.0.0/0
   egress = [
     {
       cidr_blocks      = [ "0.0.0.0/0", ]

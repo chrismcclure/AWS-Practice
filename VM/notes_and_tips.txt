@@ -1,0 +1,13 @@
+
+How to ssh into vagrant
+https://stackoverflow.com/questions/10864372/how-to-ssh-to-vagrant-without-actually-running-vagrant-ssh
+
+# save the config to a file
+vagrant ssh-config > vagrant-ssh
+
+# run ssh with the file.
+ssh -F vagrant-ssh default
+
+
+To change the encoding of the file so I can ssh into it from powershell:
+https://stackoverflow.com/questions/55693854/getting-bad-configuration-option-377-376h
