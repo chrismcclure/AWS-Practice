@@ -11,3 +11,20 @@ ssh -F vagrant-ssh default
 
 To change the encoding of the file so I can ssh into it from powershell:
 https://stackoverflow.com/questions/55693854/getting-bad-configuration-option-377-376h
+
+
+Install Ansible on the Ubuntu vm I just made
+https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#installing-ansible-on-ubuntu
+$ sudo apt update
+$ sudo apt install software-properties-common
+$ sudo add-apt-repository --yes --update ppa:ansible/ansible   (this suggestst the --update, mine worked without it. )
+$ sudo apt install ansible
+
+confirm installion
+ansible --version 
+
+
+
+TODO:
+1) Figure out how to run my ansible playbook from my vm to the ec2 instance. 
+2) Run it and see what happens. 
