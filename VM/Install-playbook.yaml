@@ -1,5 +1,5 @@
 - name: Update Ec2 Instance
-  hosts: webservers #I assume servers. Figure it out
+  hosts: ec2Instances
   remote_user: root
 
   tasks:
@@ -19,6 +19,6 @@
   - name: Install Python 3
     apt: 
       name:  python3.6
-      
+
 
 
