@@ -1,0 +1,25 @@
+---
+
+- name: Configure our webserver
+  hosts: all
+  remote_user: root
+
+  tasks:
+  #https://www.cyberciti.biz/faq/ansible-apt-update-all-packages-on-ubuntu-debian-linux/
+  - name: Upgrade all apt packages
+    apt: 
+      upgrade: dist
+      force_apt_get: yes
+
+  - name: Install AWS CLI
+    apt: 
+      name: awscli #Don't know if this is right
+
+  - name: Add Chris User
+    ansible.builtin.user: 
+      name: chris
+      comment: chris user
+
+  # - name: Install Python 3
+  #   apt: 
+  #     name: python3.6
