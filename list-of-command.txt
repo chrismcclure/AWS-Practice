@@ -34,3 +34,25 @@ Copy the file to this machine
 6) cat my-file.txt
 
 Read the file
+
+
+Need to be able to set this as a directory to go to each time:
+/mnt/c/K8sPlayground/AWS-Practice/VM
+cd /mnt/c/K8sPlayground/AWS-Practice/VM/real-world/database
+
+Extra windows steps:
+https://www.vagrantup.com/docs/other/wsl
+export VAGRANT_WSL_ENABLE_WINDOWS_ACCESS="1"
+export VAGRANT_WSL_WINDOWS_ACCESS_USER_HOME_PATH="/mnt/c/K8sPlayground"
+
+
+sudo chmod 600 .vagrant/machines/default/virtualbox/private_key
+
+How to long into the vm
+https://stackoverflow.com/questions/26524691/vagrant-box-cant-login-with-password-from-virtualbox-gui
+
+Setup Windows My Posh
+https://medium.com/analytics-vidhya/customize-your-windows-powershell-with-oh-my-posh-posh-git-93284b2749b6
+
+Changes to set Posh
+https://github.com/microsoft/terminal/issues/9237
