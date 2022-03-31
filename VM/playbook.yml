@@ -2,6 +2,8 @@
 
 - name: Configure our webserver
   hosts: all
+  become: yes
+  become_user: root
   remote_user: root
   vars:
     user_name: chris
@@ -9,7 +11,6 @@
     job: Ski instructor
 
   tasks:
-  #- set_fact: I don't need one right now, but this is how to format variables into strings.
 
   #https://www.cyberciti.biz/faq/ansible-apt-update-all-packages-on-ubuntu-debian-linux/
   - name: Upgrade all apt packages
@@ -17,9 +18,9 @@
       upgrade: dist
       force_apt_get: yes
 
-  - name: Install AWS CLI
+  - name: Install Python 3
     apt:
-      name: awscli 
+      name: python3
 
   - name: Add {{user_name}} User
     ansible.builtin.user:
@@ -55,6 +56,4 @@
 
   - debug: msg="the value of mynameis.txt is {{dir_out.stdout}}"
 
-  - name: Install Python 3
-    apt:
-      name: python3
+

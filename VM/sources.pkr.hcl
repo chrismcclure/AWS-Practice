@@ -13,7 +13,7 @@ source "amazon-ebs" "ubuntu" {
   region        = "us-east-2"
   source_ami_filter {
     filters = {
-    name                = "ubuntu/images/*ubuntu-xenial-16.04-amd64-server-*"
+    name                = "ubuntu/images/*ubuntu-focal-20.04-amd64-server-*"
       root-device-type    = "ebs"
       virtualization-type = "hvm"
     }
@@ -32,6 +32,19 @@ build {
 
   provisioner "ansible" {
       playbook_file = "./playbook.yml"
-      user = "root"
+      user = "ubuntu"
     }
+
+  provisioner "file" {
+    source = "awscli.sh"
+    destination = "~/awscli.sh"
+    }
+
+  provisioner "shell" {
+    remote_folder = "~"
+    inline = [
+       "sudo bash ~/awscli.sh",
+       "rm ~/awscli.sh"
+    ]
+  }
 }

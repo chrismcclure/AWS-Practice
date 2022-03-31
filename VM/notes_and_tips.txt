@@ -41,4 +41,9 @@ packer init .
 packer fmt .
 packer validate .
 
+vagrant up,
+vagrant provision
+vagrant destroy -f
 
+This answered one of my questions
+https://stackoverflow.com/questions/35176548/authentication-or-permission-failure-did-not-have-permissions-on-the-remote-dir
