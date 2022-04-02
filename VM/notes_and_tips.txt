@@ -21,7 +21,7 @@ $ sudo add-apt-repository --yes --update ppa:ansible/ansible   (this suggestst t
 $ sudo apt install ansible
 
 confirm installion
-ansible --version 
+ansible --version
 
 
 Did I need to install OpenSsh
@@ -36,6 +36,14 @@ copy the private key to ~/.ssh/test_key_ssh.pem
 Then I can ssh into the ec2 from the mounted folder in linux: ssh -i ~/.ssh/test_key_ssh.pem  ubuntu@ec2-18-217-80-152.us-east-2.compute.amazonaws.com
 
 
-TODO:
-1) Figure out how to run my ansible playbook from my vm to the ec2 instance. 
-2) Run it and see what happens. 
+Packer Commands:
+packer init .
+packer fmt .
+packer validate .
+
+vagrant up,
+vagrant provision
+vagrant destroy -f
+
+This answered one of my questions
+https://stackoverflow.com/questions/35176548/authentication-or-permission-failure-did-not-have-permissions-on-the-remote-dir

@@ -3,3 +3,5 @@
 .terraform/providers/registry.terraform.io/hashicorp/tls/3.1.0/windows_amd64/terraform-provider-tls_v3.1.0_x5.exe
 test_key_ssh.pem
 **/.vagrant/*
+.vagrant.d
+VM/.vagrant.d/boxes/ubuntu-VAGRANTSLASH-trusty64/20190514.0.0/virtualbox/box-disk1.vmdk

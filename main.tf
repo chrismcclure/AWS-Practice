@@ -139,7 +139,8 @@ resource "aws_iam_policy" "bucket_policy" {
 }
 
 resource "aws_instance" "challenge_instance" {
-  ami           = "ami-05803413c51f242b7"    #Which version of ubuntu is running
+  ami           = "ami-0119ab906f79a7a27" //AMI I created from Packer
+  //Standadrd AWS Version ami = "ami-05803413c51f242b7"    #Which version of ubuntu is running
   instance_type = "t2.micro"
   key_name=  aws_key_pair.test_key.key_name
   vpc_security_group_ids = [aws_security_group.main.id]
@@ -154,9 +155,9 @@ resource "aws_instance" "challenge_instance" {
    }
 }
 
-output "shh_command" {  
+output "shh_command" {
   value = "ssh -i 'test_key_ssh.pem'  ubuntu@${aws_instance.challenge_instance.public_dns}"
-} 
+}
 
 resource "aws_security_group" "main" {
   egress = [

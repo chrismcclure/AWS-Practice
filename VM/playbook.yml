@@ -1,0 +1,59 @@
+---
+
+- name: Configure our webserver
+  hosts: all
+  become: yes
+  become_user: root
+  remote_user: root
+  vars:
+    user_name: chris
+    ssh_key_filename: ssh_key_that_i_made
+    job: Ski instructor
+
+  tasks:
+
+  #https://www.cyberciti.biz/faq/ansible-apt-update-all-packages-on-ubuntu-debian-linux/
+  - name: Upgrade all apt packages
+    apt:
+      upgrade: dist
+      force_apt_get: yes
+
+  - name: Install Python 3
+    apt:
+      name: python3
+
+  - name: Add {{user_name}} User
+    ansible.builtin.user:
+      name: "{{user_name}}"
+      comment: "{{user_name}} user"
+
+  #Don't need it, but here is how to create a directory for future use
+  # - name: Create User SSH Directory
+  #   file:
+  #     path: /home/{{user_name}}/.ssh
+  #     state: directory
+
+  - name: generate SSH key
+    openssh_keypair:
+        path: "/home/{{user_name}}/{{ssh_key_filename}}"
+        type: rsa
+        size: 4096
+        state: present
+        force: no
+
+  - name: Copy the content to /home/{{user_name}}/mynameis.txt
+    copy:
+      content: “Hello, my name is {{ user_name }} and I am a {{ job }}.”
+      dest: "/home/{{user_name}}/mynameis.txt"
+      force: no
+
+  - name: Get contents of file /home/{{user_name}}/mynameis.txt
+    command: "cat /home/{{user_name}}/mynameis.txt"
+    register: dir_out
+
+  # - debug: var={{item}}
+  #   with_items: dir_out.stdout_lines
+
+  - debug: msg="the value of mynameis.txt is {{dir_out.stdout}}"
+
+
